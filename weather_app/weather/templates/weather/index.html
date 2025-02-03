@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .weather-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: transform 0.3s ease;
+        }
+        .weather-card:hover {
+            transform: translateY(-5px);
+        }
+        .weather-icon {
+            width: 100px;
+            height: 100px;
+        }
+        .loading {
+            display: none;
+        }
+        .forecast-card {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 15px;
+            padding: 15px;
+            margin: 10px 0;
+            transition: transform 0.2s;
+        }
+        .forecast-card:hover {
+            transform: scale(1.02);
+        }
+        .weather-details {
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 15px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .detail-item {
+            text-align: center;
+            padding: 10px;
+        }
+        .detail-item i {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+            color: #4a90e2;
+        }
+        .temperature-toggle {
+            cursor: pointer;
+            user-select: none;
+        }
+        .city-select {
+            width: 100%;
+        }
+        .select2-container--default .select2-selection--single {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(74, 144, 226, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            height: auto;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #333;
+            line-height: 1.2;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 100%;
+            top: 0;
+        }
+        .select2-dropdown {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(74, 144, 226, 0.3);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .select2-search__field {
+            border-radius: 5px !important;
+            padding: 8px !important;
+        }
+        .select2-results__option {
+            padding: 8px 12px;
+        }
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: #4a90e2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="weather-card p-4">
+                    <h1 class="text-center mb-4">Weather Forecast</h1>
+                    
+                    <form id="weatherForm" class="mb-4" method="post">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <select class="form-select city-select" id="citySelect" name="city" required>
+                                <option value="">Type to search for a city...</option>
+                            </select>
+                            <input type="hidden" name="lat" id="cityLat">
+                            <input type="hidden" name="lon" id="cityLon">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Get Weather
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="loading text-center my-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+
+                    <div id="weatherResult">
+                        {% if weather %}
+                            <div class="text-center">
+                                <img src="http://openweathermap.org/img/wn/{{ weather.icon }}@2x.png" alt="Weather icon" class="weather-icon">
+                                <h2>{{ weather.city }}</h2>
+                                <h3 class="temperature-toggle">
+                                    <span class="temp-c">{{ weather.temperature }}°C</span>
+                                    <span class="temp-f" style="display: none;"></span>
+                                </h3>
+                                <p class="text-muted">{{ weather.description }}</p>
+                                <p class="mb-0">Feels like: 
+                                    <span class="feels-like-c">{{ weather.feels_like }}°C</span>
+                                    <span class="feels-like-f" style="display: none;"></span>
+                                </p>
+                            </div>
+
+                            <div class="weather-details">
+                                <div class="row">
+                                    <div class="col-6 col-md-3 detail-item">
+                                        <i class="fas fa-tint"></i>
+                                        <p class="mb-0">Humidity</p>
+                                        <strong>{{ weather.humidity }}%</strong>
+                                    </div>
+                                    <div class="col-6 col-md-3 detail-item">
+                                        <i class="fas fa-wind"></i>
+                                        <p class="mb-0">Wind Speed</p>
+                                        <strong>{{ weather.wind_speed }} m/s</strong>
+                                    </div>
+                                    <div class="col-6 col-md-3 detail-item">
+                                        <i class="fas fa-sun"></i>
+                                        <p class="mb-0">Sunrise</p>
+                                        <strong>{{ weather.sunrise }}</strong>
+                                    </div>
+                                    <div class="col-6 col-md-3 detail-item">
+                                        <i class="fas fa-moon"></i>
+                                        <p class="mb-0">Sunset</p>
+                                        <strong>{{ weather.sunset }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if weather.forecast %}
+                                <h4 class="text-center mt-4 mb-3">5-Day Forecast</h4>
+                                <div class="row">
+                                    {% for day in weather.forecast %}
+                                        <div class="col-md">
+                                            <div class="forecast-card text-center">
+                                                <h5>{{ day.date }}</h5>
+                                                <img src="http://openweathermap.org/img/wn/{{ day.icon }}.png" alt="Weather icon">
+                                                <p class="mb-0">
+                                                    <span class="forecast-temp-c">{{ day.temp }}°C</span>
+                                                    <span class="forecast-temp-f" style="display: none;"></span>
+                                                </p>
+                                                <small class="text-muted">{{ day.description }}</small>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                        
+                        {% if error %}
+                            <div class="alert alert-danger text-center">
+                                {{ error }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Helper function for temperature conversion
+            function celsiusToFahrenheit(celsius) {
+                return Math.round(celsius * 1.8 + 32);
+            }
+
+            // Set initial temperatures
+            function updateTemperatures() {
+                if ($('.temp-c').length) {
+                    const tempC = parseFloat($('.temp-c').text());
+                    $('.temp-f').text(celsiusToFahrenheit(tempC) + '°F');
+
+                    const feelsLikeC = parseFloat($('.feels-like-c').text());
+                    $('.feels-like-f').text(celsiusToFahrenheit(feelsLikeC) + '°F');
+
+                    $('.forecast-temp-c').each(function() {
+                        const forecastTempC = parseFloat($(this).text());
+                        $(this).siblings('.forecast-temp-f').text(celsiusToFahrenheit(forecastTempC) + '°F');
+                    });
+                }
+            }
+            
+            updateTemperatures();
+
+            // Initialize Select2
+            $('#citySelect').select2({
+                placeholder: 'Type to search for a city...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: 'https://api.openweathermap.org/geo/1.0/direct',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            q: params.term,
+                            limit: 10,
+                            appid: '{{ weather_api_key }}'  // Make sure to pass this from your view
+                        };
+                    },
+                    processResults: function(data) {
+                        return {
+                            results: data.map(function(item) {
+                                return {
+                                    id: item.name,
+                                    text: item.name + (item.state ? ', ' + item.state : '') + ', ' + item.country,
+                                    lat: item.lat,
+                                    lon: item.lon
+                                };
+                            })
+                        };
+                    },
+                    cache: true
+                }
+            });
+
+            // Handle city selection
+            $('#citySelect').on('select2:select', function(e) {
+                var data = e.params.data;
+                $('#cityLat').val(data.lat);
+                $('#cityLon').val(data.lon);
+                $('#weatherForm').submit();
+            });
+
+            // Temperature toggle
+            let isCelsius = true;
+            $('.temperature-toggle').click(function() {
+                isCelsius = !isCelsius;
+                if (isCelsius) {
+                    $('.temp-c, .feels-like-c, .forecast-temp-c').show();
+                    $('.temp-f, .feels-like-f, .forecast-temp-f').hide();
+                } else {
+                    $('.temp-c, .feels-like-c, .forecast-temp-c').hide();
+                    $('.temp-f, .feels-like-f, .forecast-temp-f').show();
+                }
+            });
+
+            // Form submission
+            $('#weatherForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                $('.loading').show();
+                $('#weatherResult').hide();
+                
+                const formData = $(this).serialize();
+                
+                $.ajax({
+                    type: 'POST',
+                    url: '{% url "get_weather" %}',
+                    data: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(response) {
+                        let html = '';
+                        if (response.weather) {
+                            const weather = response.weather;
+                            html = `
+                                <div class="text-center">
+                                    <img src="http://openweathermap.org/img/wn/${weather.icon}@2x.png" alt="Weather icon" class="weather-icon">
+                                    <h2>${weather.city}</h2>
+                                    <h3 class="temperature-toggle">
+                                        <span class="temp-c">${weather.temperature}°C</span>
+                                        <span class="temp-f" style="display: none;"></span>
+                                    </h3>
+                                    <p class="text-muted">${weather.description}</p>
+                                    <p class="mb-0">Feels like: 
+                                        <span class="feels-like-c">${weather.feels_like}°C</span>
+                                        <span class="feels-like-f" style="display: none;"></span>
+                                    </p>
+                                </div>
+
+                                <div class="weather-details">
+                                    <div class="row">
+                                        <div class="col-6 col-md-3 detail-item">
+                                            <i class="fas fa-tint"></i>
+                                            <p class="mb-0">Humidity</p>
+                                            <strong>${weather.humidity}%</strong>
+                                        </div>
+                                        <div class="col-6 col-md-3 detail-item">
+                                            <i class="fas fa-wind"></i>
+                                            <p class="mb-0">Wind Speed</p>
+                                            <strong>${weather.wind_speed} m/s</strong>
+                                        </div>
+                                        <div class="col-6 col-md-3 detail-item">
+                                            <i class="fas fa-sun"></i>
+                                            <p class="mb-0">Sunrise</p>
+                                            <strong>${weather.sunrise}</strong>
+                                        </div>
+                                        <div class="col-6 col-md-3 detail-item">
+                                            <i class="fas fa-moon"></i>
+                                            <p class="mb-0">Sunset</p>
+                                            <strong>${weather.sunset}</strong>
+                                        </div>
+                                    </div>
+                                </div>`;
+
+                            if (weather.forecast && weather.forecast.length > 0) {
+                                html += `
+                                    <h4 class="text-center mt-4 mb-3">5-Day Forecast</h4>
+                                    <div class="row">
+                                `;
+                                
+                                weather.forecast.forEach(function(day) {
+                                    html += `
+                                        <div class="col-md">
+                                            <div class="forecast-card text-center">
+                                                <h5>${day.date}</h5>
+                                                <img src="http://openweathermap.org/img/wn/${day.icon}.png" alt="Weather icon">
+                                                <p class="mb-0">
+                                                    <span class="forecast-temp-c">${day.temp}°C</span>
+                                                    <span class="forecast-temp-f" style="display: none;"></span>
+                                                </p>
+                                                <small class="text-muted">${day.description}</small>
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                                
+                                html += '</div>';
+                            }
+                        } else if (response.error) {
+                            html = `
+                                <div class="alert alert-danger text-center">
+                                    ${response.error}
+                                </div>
+                            `;
+                        }
+                        $('#weatherResult').html(html).show();
+                        updateTemperatures();
+                        
+                        // Restore temperature unit preference
+                        if (!isCelsius) {
+                            $('.temp-c, .feels-like-c, .forecast-temp-c').hide();
+                            $('.temp-f, .feels-like-f, .forecast-temp-f').show();
+                        }
+                    },
+                    error: function() {
+                        $('#weatherResult').html('<div class="alert alert-danger text-center">An error occurred. Please try again.</div>').show();
+                    },
+                    complete: function() {
+                        $('.loading').hide();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
